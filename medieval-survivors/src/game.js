@@ -64,6 +64,7 @@ class GameScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.hero, true, 0.12, 0.12);
 
     this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,ONE,TWO,THREE,E,R');
+    this.createTouchControls();
 
     this.createHud();
 
@@ -171,9 +172,34 @@ class GameScene extends Phaser.Scene {
       fontSize: '28px', color: '#ffe9a8', align: 'center', stroke: '#000', strokeThickness: 5,
     }).setOrigin(0.5));
     this.panelBg = fixed(this.add.rectangle(CONFIG.screen.width / 2, CONFIG.screen.height - 70, 620, 120, 0x000000, 0.7));
+    this.panelBg.setInteractive().on('pointerdown', p => this.onPanelTap(p));
     this.panelText = fixed(this.add.text(CONFIG.screen.width / 2 - 296, CONFIG.screen.height - 124, '', {
       fontSize: '14px', color: '#ffffff', lineSpacing: 3,
     }));
+  }
+
+  // Telemóvel: arrastar o dedo em qualquer sítio funciona como joystick
+  createTouchControls() {
+    this.joy = null;
+    this.joyGfx = this.add.graphics().setScrollFactor(0).setDepth(99);
+    this.input.addPointer(1);
+
+    this.input.on('pointerdown', (p, over) => {
+      if (this.state === 'over') { this.scene.restart(); return; }
+      if (over.length || this.joy) return; // toque no painel, ou já há joystick
+      this.joy = { id: p.id, x: p.x, y: p.y, dx: 0, dy: 0 };
+    });
+    this.input.on('pointermove', p => {
+      if (!this.joy || p.id !== this.joy.id) return;
+      const v = new Phaser.Math.Vector2(p.x - this.joy.x, p.y - this.joy.y);
+      const max = 50;
+      if (v.length() > max) v.setLength(max);
+      this.joy.dx = v.x / max;
+      this.joy.dy = v.y / max;
+    });
+    this.input.on('pointerup', p => {
+      if (this.joy && p.id === this.joy.id) this.joy = null;
+    });
   }
 
   // -----------------------------------------------------------
@@ -207,9 +233,16 @@ class GameScene extends Phaser.Scene {
       (k.D.isDown || k.RIGHT.isDown) - (k.A.isDown || k.LEFT.isDown),
       (k.S.isDown || k.DOWN.isDown) - (k.W.isDown || k.UP.isDown),
     );
+    const joy = this.joy;
+    this.joyGfx.clear();
+    if (joy) {
+      this.joyGfx.lineStyle(2, 0xffffff, 0.4).strokeCircle(joy.x, joy.y, 50);
+      this.joyGfx.fillStyle(0xffffff, 0.35).fillCircle(joy.x + joy.dx * 50, joy.y + joy.dy * 50, 18);
+      if (Math.hypot(joy.dx, joy.dy) > 0.15) dir.set(joy.dx, joy.dy);
+    }
     if (dir.lengthSq() > 0) {
-      dir.normalize();
-      this.facing.copy(dir);
+      if (dir.length() > 1 || !joy) dir.normalize();
+      this.facing.copy(dir).normalize();
     }
     this.hero.setVelocity(dir.x * this.stats.speed, dir.y * this.stats.speed);
 
@@ -630,53 +663,68 @@ class GameScene extends Phaser.Scene {
     const near = p => Phaser.Math.Distance.Between(p.x, p.y, h.x, h.y) < 45;
     const spot = near(this.forge) ? this.forge : this.spots.find(near);
     const k = this.keys;
-    const pressed = key => Phaser.Input.Keyboard.JustDown(key);
+
+    // Cada linha do painel: texto + (opcional) tecla e ação.
+    // A mesma ação corre com a tecla ou tocando na linha (telemóvel).
+    const lines = [];
+    const add = (text, keys = [], action = null) => lines.push({ text, keys, action });
+    const priceTag = cost => (this.coins >= cost ? `${cost} moedas` : `${cost} moedas (faltam ${cost - this.coins})`);
     const optionKeys = [k.ONE, k.TWO, k.THREE];
 
     if (!spot) {
-      this.panelBg.setVisible(false);
-      this.panelText.setVisible(false);
-      return;
-    }
-
-    const priceTag = cost => (this.coins >= cost ? `${cost} moedas` : `${cost} moedas (faltam ${cost - this.coins})`);
-    let lines;
-
-    if (spot.isForge) {
+      // nada
+    } else if (spot.isForge) {
       const cost = this.forgeCost();
-      lines = [`FORJA DO HERÓI — cada melhoria custa ${priceTag(cost)}`];
-      spot.offers.forEach((u, i) => lines.push(`[${i + 1}] ${u.name}: ${u.desc}`));
-      optionKeys.forEach((key, i) => {
-        if (pressed(key) && spot.offers[i] && this.coins >= cost) {
-          this.coins -= cost;
-          this.forgePurchases += 1;
-          spot.offers[i].apply(this.stats);
-          this.showMessage(spot.offers[i].name + '!', 1200);
-          this.rollForgeOffers();
-        }
-      });
+      add(`FORJA DO HERÓI — cada melhoria custa ${priceTag(cost)}`);
+      spot.offers.forEach((u, i) => add(`[${i + 1}] ${u.name}: ${u.desc}`, [optionKeys[i]], () => this.buyHeroUpgrade(u)));
     } else if (!spot.building) {
-      lines = ['LUGAR DE CONSTRUÇÃO — escolhe:'];
+      add('LUGAR DE CONSTRUÇÃO — escolhe:');
       spot.offers.forEach((type, i) => {
         const def = CONFIG.buildings[type];
-        lines.push(`[${i + 1}] ${def.name} (${def.category}) — ${priceTag(def.levels[0].cost)}`);
-        lines.push(`     ${def.desc}`);
+        const action = () => this.build(spot, type);
+        add(`[${i + 1}] ${def.name} (${def.category}) — ${priceTag(def.levels[0].cost)}`, [optionKeys[i]], action);
+        add(`     ${def.desc}`, [], action);
       });
-      optionKeys.forEach((key, i) => { if (pressed(key) && spot.offers[i]) this.build(spot, spot.offers[i]); });
     } else {
       const b = spot.building;
       const def = CONFIG.buildings[b.type];
-      lines = [`${def.name.toUpperCase()} — nível ${ROMAN[b.level]}`, def.desc];
+      add(`${def.name.toUpperCase()} — nível ${ROMAN[b.level]}`);
+      add(def.desc);
       if (b.level < def.levels.length) {
-        lines.push(`[E] Evoluir para nível ${ROMAN[b.level + 1]} — ${priceTag(def.levels[b.level].cost)}`);
-        if (pressed(k.E) || pressed(k.ONE)) this.upgrade(spot);
+        add(`[E] Evoluir para nível ${ROMAN[b.level + 1]} — ${priceTag(def.levels[b.level].cost)}`, [k.E, k.ONE], () => this.upgrade(spot));
       } else {
-        lines.push('Nível máximo');
+        add('Nível máximo');
       }
     }
 
-    this.panelBg.setVisible(true);
-    this.panelText.setVisible(true).setText(lines.join('\n'));
+    this.panelLines = lines;
+    this.panelBg.setVisible(lines.length > 0);
+    this.panelText.setVisible(lines.length > 0).setText(lines.map(l => l.text).join('\n'));
+
+    // Teclado (JustDown é chamado em todas as teclas para não ficar "pendente")
+    let fired = false;
+    lines.forEach(l => l.keys.forEach(key => {
+      if (Phaser.Input.Keyboard.JustDown(key) && l.action && !fired) { fired = true; l.action(); }
+    }));
+  }
+
+  // Toque no painel: descobre em que linha se tocou
+  onPanelTap(pointer) {
+    const lines = this.panelLines ?? [];
+    if (!lines.length) return;
+    const lineHeight = this.panelText.height / lines.length;
+    const line = lines[Math.floor((pointer.y - this.panelText.y) / lineHeight)];
+    if (line && line.action) line.action();
+  }
+
+  buyHeroUpgrade(upgrade) {
+    const cost = this.forgeCost();
+    if (this.coins < cost) return;
+    this.coins -= cost;
+    this.forgePurchases += 1;
+    upgrade.apply(this.stats);
+    this.showMessage(upgrade.name + '!', 1200);
+    this.rollForgeOffers();
   }
 
   forgeCost() {
@@ -727,7 +775,7 @@ class GameScene extends Phaser.Scene {
     const msg = won
       ? `VITÓRIA!\nSobreviveste às ${CONFIG.waves.count} vagas`
       : `Morreste na vaga ${this.wave}`;
-    this.centerText.setText(msg + '\n\nPrime R para recomeçar').setAlpha(1);
+    this.centerText.setText(msg + '\n\nPrime R (ou toca no ecrã) para recomeçar').setAlpha(1);
     this.panelBg.setVisible(false);
     this.panelText.setVisible(false);
   }
@@ -740,6 +788,7 @@ window.game = new Phaser.Game({
   height: CONFIG.screen.height,
   backgroundColor: '#1d2b1a',
   physics: { default: 'arcade', arcade: { debug: false } },
+  parent: 'game',
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   scene: [GameScene],
 });

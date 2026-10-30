@@ -13,6 +13,8 @@ Abre `index.html` no browser. Não precisa de instalar nada, porque o Phaser vem
 | E | Evoluir a construção onde estás |
 | R | Recomeçar depois de morrer ou ganhar |
 
+No **telemóvel**: arrasta o dedo para mover (joystick), toca numa opção do painel para comprar e toca no ecrã para recomeçar. Joga-se melhor com o telemóvel deitado.
+
 O herói ataca sozinho. Para construir ou comprar, tens de estar **em cima** do lugar, e o jogo **não pausa** enquanto o fazes.
 
 ## Estrutura
