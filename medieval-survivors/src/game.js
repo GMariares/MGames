@@ -147,6 +147,7 @@ class GameScene extends Phaser.Scene {
       };
       spot.ring = this.add.image(p.x, p.y, 'spot').setDepth(1);
       spot.label = this.add.text(p.x, p.y, '+', { fontSize: '24px', color: '#f0e6c8' }).setOrigin(0.5).setDepth(1);
+      spot.priceText = this.makePriceText(p.x, p.y - 36);
       return spot;
     });
   }
@@ -157,7 +158,37 @@ class GameScene extends Phaser.Scene {
     this.add.image(f.x, f.y, 'spot').setDepth(1).setTint(0xff9a3a);
     this.add.image(f.x, f.y, 'forge').setDepth(2);
     this.add.text(f.x, f.y + 34, 'FORJA', { fontSize: '12px', color: '#ffb36b' }).setOrigin(0.5).setDepth(2);
+    this.forge.priceText = this.makePriceText(f.x, f.y - 36);
     this.rollForgeOffers();
+  }
+
+  // Preço por cima de cada lugar (amarelo = dá para comprar, cinzento = faltam moedas)
+  makePriceText(x, y) {
+    return this.add.text(x, y, '', {
+      fontSize: '13px', color: '#ffd23f', stroke: '#000', strokeThickness: 3, align: 'center',
+    }).setOrigin(0.5, 1).setDepth(7);
+  }
+
+  updatePriceLabels() {
+    const set = (txt, text, affordable) => {
+      if (txt.text !== text) txt.setText(text);
+      const color = affordable ? '#ffd23f' : '#9a9a9a';
+      if (txt.style.color !== color) txt.setColor(color);
+    };
+    this.spots.forEach(spot => {
+      const b = spot.building;
+      if (!b) {
+        const costs = spot.offers.map(t => CONFIG.buildings[t].levels[0].cost);
+        const text = spot.offers.map((t, i) => `${CONFIG.buildings[t].short} ${costs[i]}`).join('\n');
+        set(spot.priceText, text, this.coins >= Math.min(...costs));
+      } else {
+        const levels = CONFIG.buildings[b.type].levels;
+        if (b.level >= levels.length) set(spot.priceText, 'Máx.', false);
+        else set(spot.priceText, `Evoluir ${levels[b.level].cost}`, this.coins >= levels[b.level].cost);
+      }
+    });
+    const cost = this.forgeCost();
+    set(this.forge.priceText, `Melhoria ${cost}`, this.coins >= cost);
   }
 
   rollForgeOffers() {
@@ -224,6 +255,7 @@ class GameScene extends Phaser.Scene {
     this.updateCoins(time);
     this.updateChests();
     this.updateInteraction();
+    this.updatePriceLabels();
     this.updateHud();
   }
 

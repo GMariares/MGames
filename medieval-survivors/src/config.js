@@ -20,32 +20,32 @@ const CONFIG = {
     speed: 180,
     maxHp: 100,
     pickupRadius: 34,  // distância a que apanhas moedas
-    invulnMs: 500,     // tempo invencível depois de levar dano
+    invulnMs: 700,     // tempo invencível depois de levar dano
   },
 
   coins: {
-    startWith: 0,
+    startWith: 15,     // dá para construir logo uma Torre ou Espinhos
     lifetime: 12000,   // ms até a moeda desaparecer
     blinkAt: 3000,     // começa a piscar nos últimos 3 s
   },
 
   // Ritmo de aparecimento de inimigos (inimigos por segundo)
   spawn: {
-    baseRate: 1.0,
+    baseRate: 0.7,
     perWave: 0.5,       // + por cada vaga
-    rampInWave: 1.5,    // + ao longo da vaga (do início até ao boss)
+    rampInWave: 1.2,    // + ao longo da vaga (do início até ao boss)
     duringBoss: 0.4,    // fração do ritmo enquanto o boss está vivo
     maxEnemies: 250,
     hpPerWave: 0.25,    // +25% vida dos inimigos por vaga
   },
 
   enemies: {
-    goblin:    { name: 'Goblin',    hp: 8,  speed: 95, damage: 5,  coins: 1, size: 10, color: 0x6abe30 },
-    esqueleto: { name: 'Esqueleto', hp: 18, speed: 65, damage: 8,  coins: 2, size: 12, color: 0xd9d9d9 },
+    goblin:    { name: 'Goblin',    hp: 7,  speed: 85, damage: 4,  coins: 1, size: 10, color: 0x6abe30 },
+    esqueleto: { name: 'Esqueleto', hp: 14, speed: 65, damage: 8,  coins: 2, size: 12, color: 0xd9d9d9 },
     ogre:      { name: 'Ogre',      hp: 60, speed: 42, damage: 15, coins: 5, size: 18, color: 0x8f563b },
   },
 
-  boss: { name: 'Senhor da Guerra', hp: 500, hpPerWave: 0.6, speed: 55, damage: 25, coins: 30, size: 34, color: 0x9b1d20 },
+  boss: { name: 'Senhor da Guerra', hp: 250, hpPerWave: 1.0, speed: 55, damage: 25, coins: 30, size: 34, color: 0x9b1d20 },
 
   // ---------------------------------------------------------
   // CONSTRUÇÕES: cada nível é mais caro e mais forte.
@@ -53,7 +53,7 @@ const CONFIG = {
   offersPerSpot: 2, // quantas construções aleatórias cada lugar oferece
   buildings: {
     torre: {
-      name: 'Torre de Arqueiros', category: 'Ofensiva', color: 0xb0413e,
+      name: 'Torre de Arqueiros', short: 'Torre', category: 'Ofensiva', color: 0xb0413e,
       desc: 'Dispara flechas ao inimigo mais próximo',
       levels: [
         { cost: 15, range: 200, damage: 6,  fireRate: 900 },
@@ -62,7 +62,7 @@ const CONFIG = {
       ],
     },
     espinhos: {
-      name: 'Campo de Espinhos', category: 'Controlo', color: 0x5b6ee1,
+      name: 'Campo de Espinhos', short: 'Espinhos', category: 'Controlo', color: 0x5b6ee1,
       desc: 'Abranda e fere os inimigos na área',
       levels: [
         { cost: 12, radius: 80,  slow: 0.55, dps: 3 },
@@ -71,7 +71,7 @@ const CONFIG = {
       ],
     },
     mina: {
-      name: 'Mina de Ouro', category: 'Economia', color: 0xe0b020,
+      name: 'Mina de Ouro', short: 'Mina', category: 'Economia', color: 0xe0b020,
       desc: 'Produz moedas de tempos a tempos',
       levels: [
         { cost: 20, every: 6000, coins: 2 },
@@ -80,7 +80,7 @@ const CONFIG = {
       ],
     },
     santuario: {
-      name: 'Santuário', category: 'Suporte', color: 0x99e550,
+      name: 'Santuário', short: 'Santuário', category: 'Suporte', color: 0x99e550,
       desc: 'Cura o herói e dá +dano enquanto estiveres na área',
       levels: [
         { cost: 18, radius: 100, heal: 2, dmgBonus: 0.15 },
@@ -118,7 +118,7 @@ const CONFIG = {
   // ---------------------------------------------------------
   weaponDamagePerLevel: 0.3, // +30% dano por nível de arma
   weapons: {
-    adaga:   { name: 'Adagas',              cooldown: 750,  damage: 5,  speed: 420, range: 420 },
+    adaga:   { name: 'Adagas',              cooldown: 600,  damage: 8,  speed: 420, range: 420 },
     espadas: { name: 'Espadas Orbitais',    damage: 5,  radius: 62, rotSpeed: 3.2, hitCooldown: 450 },
     martelo: { name: 'Martelo Sísmico',     cooldown: 2600, damage: 14, radius: 110, knockback: 40 },
     machado: { name: 'Machado Arremessado', cooldown: 1300, damage: 10, speed: 340, pierce: 6, life: 1400 },
